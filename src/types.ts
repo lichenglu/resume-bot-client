@@ -1,6 +1,7 @@
 export interface DialogFlowMessage {
   type: MessageTypes;
   text?: string | string[];
+  items?: any[];
   options?: {
     text: string
     link: string
