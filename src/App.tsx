@@ -109,7 +109,7 @@ function App() {
   const [chatboxOpen, setChatboxOpen] = useState(true);
   const [navTitle, setNavTitle] = useState("Smoky, the Algebra Bot");
 
-  const { messages, appendMsg, setTyping } = useMessages(mockMessages);
+  const { messages, appendMsg, setTyping } = useMessages([]);
 
   useEffect(() => {
     clearTimeout(MATH_JAX_TIMER)
@@ -200,7 +200,7 @@ function App() {
       case MessageTypes.info:
         contentComponent =
           content.items?.length > 0 ? (
-            <>
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
               <Divider>{content.text}</Divider>
               <ScrollView
                 data={content.items}
@@ -229,7 +229,7 @@ function App() {
                   );
                 }}
               />
-            </>
+            </div>
           ) : (
             <Card
               // @ts-ignore
