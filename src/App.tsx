@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Chat, { useMessages, MessageProps } from "@chatui/core";
 import { ComposerHandle } from "@chatui/core/lib/components/Composer";
 import { Modal } from "antd";
-import { MathFieldChangeEvent } from "@edpi/react-math-view";
+import { MathFieldChangeEvent, MathViewRef } from "@edpi/react-math-view";
 import styled from "styled-components";
 import "@chatui/core/dist/index.css";
 
@@ -141,7 +141,9 @@ function App() {
   const handleMathviewChange = (
     e: React.SyntheticEvent<HTMLInputElement, MathFieldChangeEvent>
   ) => {
-    mathviewDataRef.current.value = e.currentTarget.getValue();
+    // @ts-ignore
+    const target = e.currentTarget as MathViewRef;
+    mathviewDataRef.current.value = target.getValue();
   };
 
   const handleMathviewOK = () => {
