@@ -10,6 +10,7 @@
   "dependencies": {
     "@ant-design/icons": "^4.7.0",
     "@chatui/core": "^1.4.1",
+    "@edpi/react-math-view": "github:xing38/react-math-view",
     "antd": "^4.20.3",
     "apisauce": "^2.1.5",
     "ramda": "^0.28.0",

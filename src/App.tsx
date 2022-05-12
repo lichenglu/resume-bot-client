@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Chat, {
   Bubble,
   Button,
@@ -15,8 +15,10 @@ import Chat, {
   useMessages,
   MessageProps,
 } from "@chatui/core";
-import { Tag, Avatar, Image } from "antd";
+import { ComposerHandle } from '@chatui/core/lib/components/Composer'
+import { Tag, Avatar, Image, Modal } from "antd";
 import { BulbOutlined } from "@ant-design/icons";
+import { MathFieldChangeEvent } from "@edpi/react-math-view";
 
 import "@chatui/core/dist/index.css";
 import styled from "styled-components";
@@ -26,8 +28,14 @@ import { MessageTypes } from "./types";
 import mockMessages from "./mock/messages.json";
 
 import { talkToAgent } from "./api";
-import { transformDialogflowToChatUI, trimString } from "./utils";
+import {
+  transformDialogflowToChatUI,
+  trimString,
+  findTargetDelimiter,
+  replaceRange,
+} from "./utils";
 import TruncatedList from "./components/truncatedList";
+import MathWithKeyboardButton from "./components/mathview";
 
 const Container = styled.div`
   .ChatApp {
@@ -103,46 +111,58 @@ const defaultQuickReplies = [
   },
 ];
 
-let MATH_JAX_TIMER: NodeJS.Timer
+let MATH_JAX_TIMER: NodeJS.Timer;
 
 function App() {
   const [chatboxOpen, setChatboxOpen] = useState(true);
   const [navTitle, setNavTitle] = useState("Smoky, the Algebra Bot");
+  const [inputText, setInputText] = useState("");
+  const [mathviewModalOpen, setMathviewModalOpen] = useState(false);
+  const mathviewDataRef = useRef<{
+    range?: number[];
+    value?: string;
+  }>({});
+  const composerRef = useRef<ComposerHandle>();
 
   const { messages, appendMsg, setTyping } = useMessages([]);
 
   useEffect(() => {
-    clearTimeout(MATH_JAX_TIMER)
+    clearTimeout(MATH_JAX_TIMER);
     MATH_JAX_TIMER = setTimeout(() => {
       if (window.MathJax && typeof window.MathJax.typeset === "function") {
         window.MathJax.typeset();
       }
-    }, 1000)
+    }, 1000);
     return () => {
-      clearTimeout(MATH_JAX_TIMER)
-    }
-  }, [messages])
+      clearTimeout(MATH_JAX_TIMER);
+    };
+  }, [messages]);
+
+  useEffect(() => {
+    composerRef.current?.setText(inputText);
+  }, [inputText]);
 
   const handleSend = async (type: string, val: string) => {
-    if (type === MessageTypes.text && val.trim()) {
-      appendMsg({
-        type: "text",
-        content: { text: val },
-        position: "right",
-      });
+    console.log(type);
+    // if (type === MessageTypes.text && val.trim()) {
+    //   appendMsg({
+    //     type: "text",
+    //     content: { text: val },
+    //     position: "right",
+    //   });
 
-      setTyping(true);
+    //   setTyping(true);
 
-      // call api
-      const res = await talkToAgent({ message: val });
-      if (res.ok && res.data) {
-        const msgs = transformDialogflowToChatUI(res.data!);
-        console.log(msgs);
-        msgs.forEach((msg) => appendMsg(msg));
-      }
+    //   // call api
+    //   const res = await talkToAgent({ message: val });
+    //   if (res.ok && res.data) {
+    //     const msgs = transformDialogflowToChatUI(res.data!);
+    //     console.log(msgs);
+    //     msgs.forEach((msg) => appendMsg(msg));
+    //   }
 
-      setTyping(false);
-    }
+    //   setTyping(false);
+    // }
   };
 
   const renderMessageContent = (msg: MessageProps) => {
@@ -200,7 +220,13 @@ function App() {
       case MessageTypes.info:
         contentComponent =
           content.items?.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                width: "100%",
+              }}
+            >
               <Divider>{content.text}</Divider>
               <ScrollView
                 data={content.items}
@@ -300,6 +326,57 @@ function App() {
     handleSend("text", item.name);
   };
 
+  const handleInputFieldClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+    const currentValue = target.value;
+    const cursorStartIndex = target.selectionStart;
+
+    if (!cursorStartIndex) {
+      mathviewDataRef.current.range = undefined;
+      return;
+    }
+
+    const range = findTargetDelimiter(currentValue, cursorStartIndex);
+
+    if (!range) {
+      mathviewDataRef.current.range = undefined;
+      return;
+    }
+
+    mathviewDataRef.current.range = range;
+    setMathviewModalOpen(true);
+  };
+
+  const handleMathviewChange = (
+    e: React.SyntheticEvent<HTMLInputElement, MathFieldChangeEvent>
+  ) => {
+    mathviewDataRef.current.value = e.currentTarget.getValue();
+  };
+
+  const handleMathviewOK = () => {
+    setInputText((text) => {
+      if (!mathviewDataRef.current.range || !mathviewDataRef.current.value) {
+        return text;
+      }
+
+      const replaced = replaceRange(
+        text,
+        mathviewDataRef.current.range[0],
+        mathviewDataRef.current.range[1] + 1,
+        `$${mathviewDataRef.current.value}$`
+      );
+      return replaced;
+    });
+    setMathviewModalOpen(false);
+  };
+
+  const handleMathviewCancel = () => {
+    mathviewDataRef.current.value = "";
+    mathviewDataRef.current.range = undefined;
+
+    setMathviewModalOpen(false);
+  };
+
   return (
     <Container>
       {chatboxOpen && (
@@ -311,6 +388,13 @@ function App() {
           quickReplies={defaultQuickReplies}
           onQuickReplyClick={handleQuickReplyClick}
           locale="en-US"
+          inputOptions={{
+            onClick: handleInputFieldClick,
+          }}
+          onInputChange={(value, e) => setInputText(value)}
+          placeholder="Ask me anything!"
+          composerRef={composerRef}
+          // Composer={() => <div>hello</div>}
           // toolbar={[
           //   {
           //     title: '公告',
@@ -319,6 +403,33 @@ function App() {
           // ]}
         />
       )}
+      <Modal
+        visible={mathviewModalOpen}
+        title="Math Input"
+        onOk={handleMathviewOK}
+        onCancel={handleMathviewCancel}
+        mask={false}
+        maskClosable={false}
+        zIndex={105}
+        bodyStyle={{ fontSize: 28 }}
+        destroyOnClose={true}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <MathWithKeyboardButton
+            onChange={handleMathviewChange}
+            value={mathviewDataRef.current.range && inputText.substring(
+              mathviewDataRef.current.range[0] + 1,
+              mathviewDataRef.current.range[1]
+            )}
+          />
+        </div>
+      </Modal>
       <Toggle src={schnauzerImg} />
     </Container>
   );

@@ -9,7 +9,7 @@ export const transformDialogflowToChatUI = (
 ): MessageProps[] => {
   const id = response.responseId!;
   return flatten<MessageProps[][][]>(
-      // @ts-ignore
+    // @ts-ignore
     response.queryResult?.responseMessages?.map((msg, idx) => {
       if (msg.text) {
         return {
@@ -66,7 +66,7 @@ export const transformDialogflowToChatUI = (
                         description: item.subtitle ?? item.description,
                         imgUrl: item.rawUrl ?? item.image?.src,
                         event: item.event,
-                    }))
+                      }))
                     : [],
                   actionLink: content.actionLink ?? content.link,
                   description: content.subtitle,
@@ -89,6 +89,53 @@ export const transformDialogflowToChatUI = (
   ).filter((msg) => !!msg);
 };
 
+// https://stackoverflow.com/a/3410547
 export const trimString = (str: string, limit: number = 100) => {
   return str.slice(0, limit + 1) + "...";
 };
+
+export function indexes(source: string, find: string) {
+  if (!source) {
+    return [];
+  }
+  // if find is empty string return all indexes.
+  if (!find) {
+    // or shorter arrow function:
+    // return source.split('').map((_,i) => i);
+    return source.split("").map(function (_, i) {
+      return i;
+    });
+  }
+  var result = [];
+  for (let i = 0; i < source.length; ++i) {
+    // If you want to search case insensitive use
+    // if (source.substring(i, i + find.length).toLowerCase() == find) {
+    if (source.substring(i, i + find.length) == find) {
+      result.push(i);
+    }
+  }
+  return result;
+}
+
+export function findTargetDelimiter(source: string, cursorStartIndex: number) {
+  const delimiterIndices = indexes(source, "$");
+
+  // there should always be a even number for pairs of $
+  if (delimiterIndices.length % 2 !== 0) {
+    return;
+  }
+
+  // https://stackoverflow.com/a/8495740
+  const chunkSize = 2;
+
+  for (let i = 0; i < delimiterIndices.length; i += chunkSize) {
+    const [start, end] = delimiterIndices.slice(i, i + chunkSize);
+    if (cursorStartIndex >= start && cursorStartIndex <= end) {
+      return [start, end]
+    }
+  }
+}
+
+export function replaceRange(s: string, start: number, end: number, substitute: string) {
+  return s.substring(0, start) + substitute + s.substring(end);
+}
